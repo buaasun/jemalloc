@@ -17,6 +17,8 @@
 
 /******************************************************************************/
 /* Data. */
+size_t dallocated_size=0;
+volatile extern size_t allocated_size;
 
 /* Actual operating system page size, detected during bootstrap, <= PAGE. */
 static size_t	os_page;
@@ -49,13 +51,13 @@ static bool pages_can_purge_lazy_runtime = true;
 static void os_pages_unmap(void *addr, size_t size);
 
 /******************************************************************************/
-
+size_t mmap_size = 0;
 static void *
 os_pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
 	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
 	assert(ALIGNMENT_CEILING(size, os_page) == size);
 	assert(size != 0);
-
+    mmap_size += size;
 	if (os_overcommits) {
 		*commit = true;
 	}
@@ -128,6 +130,7 @@ static void
 os_pages_unmap(void *addr, size_t size) {
 	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
 	assert(ALIGNMENT_CEILING(size, os_page) == size);
+    mmap_size -= size;
 
 #ifdef _WIN32
 	if (VirtualFree(addr, 0, MEM_RELEASE) == 0)
@@ -210,6 +213,8 @@ pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
 
 void
 pages_unmap(void *addr, size_t size) {
+    allocated_size -= size;
+    dallocated_size += size;
 	assert(PAGE_ADDR2BASE(addr) == addr);
 	assert(PAGE_CEILING(size) == size);
 

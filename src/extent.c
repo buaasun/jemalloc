@@ -9,9 +9,11 @@
 #include "jemalloc/internal/rtree.h"
 #include "jemalloc/internal/mutex.h"
 #include "jemalloc/internal/mutex_pool.h"
-
+#include "jemalloc/internal/log.h"
 /******************************************************************************/
 /* Data. */
+volatile size_t max_alloc_size= (size_t) -1;
+volatile size_t allocated_size=0;
 
 rtree_t		extents_rtree;
 /* Keyed by the address of the extent_t being protected. */
@@ -1147,6 +1149,11 @@ extent_alloc_core(tsdn_t *tsdn, arena_t *arena, void *new_addr, size_t size,
 
 	assert(size != 0);
 	assert(alignment != 0);
+    if(unlikely(allocated_size + size > max_alloc_size)){
+		LOG("oom, allocated_size=%lu, size=%lu, max_alloc_size=%lu\n",allocated_size,size,max_alloc_size);
+        return NULL;
+    }
+    allocated_size += size;
 
 	/* "primary" dss. */
 	if (have_dss && dss_prec == dss_prec_primary && (ret =
