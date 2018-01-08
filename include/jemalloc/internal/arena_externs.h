@@ -42,6 +42,7 @@ ssize_t arena_muzzy_decay_ms_get(arena_t *arena);
 bool arena_muzzy_decay_ms_set(tsdn_t *tsdn, arena_t *arena, ssize_t decay_ms);
 void arena_decay(tsdn_t *tsdn, arena_t *arena, bool is_background_thread,
     bool all);
+void arena_destroy_retained(tsdn_t *tsdn, arena_t *arena);
 void arena_reset(tsd_t *tsd, arena_t *arena);
 void arena_destroy(tsd_t *tsd, arena_t *arena);
 void arena_tcache_fill_small(tsdn_t *tsdn, arena_t *arena, tcache_t *tcache,

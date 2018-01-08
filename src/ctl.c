@@ -113,6 +113,7 @@ CTL_PROTO(tcache_destroy)
 CTL_PROTO(arena_i_initialized)
 CTL_PROTO(arena_i_decay)
 CTL_PROTO(arena_i_purge)
+CTL_PROTO(arena_i_destroy_retained)
 CTL_PROTO(arena_i_reset)
 CTL_PROTO(arena_i_destroy)
 CTL_PROTO(arena_i_dss)
@@ -318,6 +319,7 @@ static const ctl_named_node_t arena_i_node[] = {
 	{NAME("initialized"),	CTL(arena_i_initialized)},
 	{NAME("decay"),		CTL(arena_i_decay)},
 	{NAME("purge"),		CTL(arena_i_purge)},
+	{NAME("destroy_retained"),		CTL(arena_i_destroy_retained)},
 	{NAME("reset"),		CTL(arena_i_reset)},
 	{NAME("destroy"),	CTL(arena_i_destroy)},
 	{NAME("dss"),		CTL(arena_i_dss)},
@@ -1912,6 +1914,51 @@ arena_i_decay(tsdn_t *tsdn, unsigned arena_ind, bool all) {
 		}
 	}
 }
+static void
+arena_i_destroy_retained(tsdn_t *tsdn, unsigned arena_ind) {
+	malloc_mutex_lock(tsdn, &ctl_mtx);
+	{
+		unsigned narenas = ctl_arenas->narenas;
+
+		/*
+		 * Access via index narenas is deprecated, and scheduled for
+		 * removal in 6.0.0.
+		 */
+		if (arena_ind == MALLCTL_ARENAS_ALL || arena_ind == narenas) {
+			unsigned i;
+			VARIABLE_ARRAY(arena_t *, tarenas, narenas);
+
+			for (i = 0; i < narenas; i++) {
+				tarenas[i] = arena_get(tsdn, i, false);
+			}
+
+			/*
+			 * No further need to hold ctl_mtx, since narenas and
+			 * tarenas contain everything needed below.
+			 */
+			malloc_mutex_unlock(tsdn, &ctl_mtx);
+
+			for (i = 0; i < narenas; i++) {
+				if (tarenas[i] != NULL) {
+					arena_destroy_retained(tsdn, tarenas[i]);
+				}
+			}
+		} else {
+			arena_t *tarena;
+
+			assert(arena_ind < narenas);
+
+			tarena = arena_get(tsdn, arena_ind, false);
+
+			/* No further need to hold ctl_mtx. */
+			malloc_mutex_unlock(tsdn, &ctl_mtx);
+
+			if (tarena != NULL) {
+				arena_destroy_retained(tsdn, tarena);
+			}
+		}
+	}
+}
 
 static int
 arena_i_decay_ctl(tsd_t *tsd, const size_t *mib, size_t miblen, void *oldp,
@@ -1942,6 +1989,21 @@ arena_i_purge_ctl(tsd_t *tsd, const size_t *mib, size_t miblen, void *oldp,
 
 	ret = 0;
 label_return:
+	return ret;
+}
+static int
+arena_i_destroy_retained_ctl(tsd_t *tsd, const size_t *mib, size_t miblen, void *oldp,
+				  size_t *oldlenp, void *newp, size_t newlen) {
+	int ret;
+	unsigned arena_ind;
+
+	READONLY();
+	WRITEONLY();
+	MIB_UNSIGNED(arena_ind, 1);
+	arena_i_destroy_retained(tsd_tsdn(tsd), arena_ind);
+
+	ret = 0;
+  label_return:
 	return ret;
 }
 

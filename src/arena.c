@@ -1033,7 +1033,7 @@ arena_reset(tsd_t *tsd, arena_t *arena) {
 	atomic_store_zu(&arena->nactive, 0, ATOMIC_RELAXED);
 }
 
-static void
+void
 arena_destroy_retained(tsdn_t *tsdn, arena_t *arena) {
 	/*
 	 * Iterate over the retained extents and destroy them.  This gives the
