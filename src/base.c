@@ -11,8 +11,6 @@
 /* Data. */
 
 static base_t *b0;
-volatile extern size_t max_alloc_size;
-volatile extern size_t allocated_size;
 
 metadata_thp_mode_t opt_metadata_thp = METADATA_THP_DEFAULT;
 
@@ -35,10 +33,7 @@ base_map(tsdn_t *tsdn, extent_hooks_t *extent_hooks, unsigned ind, size_t size) 
 	void *addr;
 	bool zero = true;
 	bool commit = true;
-    if(unlikely(allocated_size + size > max_alloc_size)){
-        return NULL;
-    }
-    allocated_size += size;
+
 	/* Use huge page sizes and alignment regardless of opt_metadata_thp. */
 	assert(size == HUGEPAGE_CEILING(size));
 	size_t alignment = HUGEPAGE;
